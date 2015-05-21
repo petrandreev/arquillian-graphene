@@ -82,11 +82,18 @@ public class GrapheneExtension implements LoadableExtension {
         /* Resource Providers */
         builder.service(ResourceProvider.class, GrapheneContextProvider.class);
         builder.service(ResourceProvider.class, GrapheneConfigurationResourceProvider.class);
-        // ARQGRA-468 make usage of Graphen custom URL possible without container test dependency
-        if (SecurityActions.isClassPresent("org.jboss.arquillian.container.test.impl.enricher.resource.URLResourceProvider")) {
-            builder.override(ResourceProvider.class, URLResourceProvider.class, ContainerCustomizableURLResourceProvider.class);
-        } else {
-            builder.service(ResourceProvider.class, CustomizableURLResourceProvider.class);
+        // ARQ-1952: the URL provider services registered by Graphene and Warp are retrieved in random order therefore the
+        // Graphene requests occasionally go around the Warp proxy (it depends on the order of Set entries, which is
+        // undetermined)
+        if (!SecurityActions.isClassPresent("org.jboss.arquillian.warp.impl.client.proxy.ProxyURLProvider")) {
+            // ARQGRA-468 make usage of Graphene custom URL possible without container test dependency
+            if (SecurityActions
+                .isClassPresent("org.jboss.arquillian.container.test.impl.enricher.resource.URLResourceProvider")) {
+                builder.override(ResourceProvider.class, URLResourceProvider.class,
+                    ContainerCustomizableURLResourceProvider.class);
+            } else {
+                builder.service(ResourceProvider.class, CustomizableURLResourceProvider.class);
+            }
         }
 
         SeleniumResourceProvider.registerAllProviders(builder);
