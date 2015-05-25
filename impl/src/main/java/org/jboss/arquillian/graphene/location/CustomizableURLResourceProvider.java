@@ -21,15 +21,19 @@
  */
 package org.jboss.arquillian.graphene.location;
 
+import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.core.api.Instance;
 import org.jboss.arquillian.core.api.annotation.Inject;
 import org.jboss.arquillian.graphene.spi.configuration.GrapheneConfiguration;
 import org.jboss.arquillian.test.api.ArquillianResource;
+import org.jboss.arquillian.test.spi.TestClass;
 import org.jboss.arquillian.test.spi.enricher.resource.ResourceProvider;
 
 import java.lang.annotation.Annotation;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * The CustomizableURLResourceProvider is used in the context of Graphene, if you use
@@ -38,41 +42,54 @@ import java.net.URL;
  * on the classpath.
  *
  * @see org.jboss.arquillian.test.spi.enricher.resource.ResourceProvider
- * @see ContainerCustomizableURLResourceProvider
  */
 public class CustomizableURLResourceProvider implements ResourceProvider {
+
+    private static final Logger log = Logger.getLogger(CustomizableURLResourceProvider.class.getName());
 
     @Inject
     private Instance<GrapheneConfiguration> grapheneConfiguration;
 
+    @Inject
+    private Instance<TestClass> testClass;
+
     @Override
     public boolean canProvide(Class<?> type) {
-        return URL.class.isAssignableFrom(type);
+        //can only provide an URL resource
+        if (!URL.class.isAssignableFrom(type)) {
+            return false;
+        }
+        //no custom URL can be provided if not configured
+        String configuredURL = grapheneConfiguration.get().getUrl();
+        if (configuredURL == null) {
+            return false;
+        }
+        //check if the configured URL is a valid one
+        try {
+            new URL(configuredURL);
+        } catch (MalformedURLException ex) {
+            return false;
+        }
+        //the custom URL provider does not operate on deployment
+        //WARNING: this would not work with ARQ Suite!
+        if (hasDeployment(testClass.get())) {
+            return false;
+        }
+        return true;
     }
 
     @Override
     public Object lookup(ArquillianResource resource, Annotation... qualifiers) {
-
-        URL url = doLookup(resource, qualifiers);
-
-        if (url == null) {
-
-            String grapheneCustomURL = grapheneConfiguration.get().getUrl();
-
-            if (grapheneCustomURL != null) {
-
-                try {
-                    url = new URL(grapheneCustomURL);
-                } catch (MalformedURLException ex) {
-                    throw new IllegalStateException("Configured custom URL from GrapheneConfiguration should be already a valid URL.");
-                }
-            }
+        String configuredURL = grapheneConfiguration.get().getUrl();
+        try {
+            return new URL(configuredURL);
+        } catch (MalformedURLException ex) {
+            log.log(Level.SEVERE, "should never happen since we already went through two checks!", ex);
         }
-
-        return url;
+        return null;
     }
 
-    protected URL doLookup(ArquillianResource resource, Annotation... qualifiers) {
-        return null;
+    private boolean hasDeployment(TestClass testClass) {
+        return testClass.getMethods(Deployment.class).length > 0;
     }
 }
