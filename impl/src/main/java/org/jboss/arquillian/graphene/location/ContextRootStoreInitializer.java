@@ -32,6 +32,7 @@ import org.jboss.arquillian.core.spi.ServiceLoader;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.jboss.arquillian.test.spi.annotation.ClassScoped;
 import org.jboss.arquillian.test.spi.enricher.resource.ResourceProvider;
+import org.jboss.arquillian.test.spi.enricher.resource.ResourceProviderWrapper;
 import org.jboss.arquillian.test.spi.event.enrichment.BeforeEnrichment;
 
 public class ContextRootStoreInitializer {
@@ -49,9 +50,21 @@ public class ContextRootStoreInitializer {
 
     private URL getContextRoot() {
         URL result = null;
+        ArquillianResource resourceAnnotation = new ArquillianResourceAnnotation();
         for (ResourceProvider provider : serviceLoader.get().all(ResourceProvider.class)) {
             if (provider.canProvide(URL.class)) {
-                result = (URL) provider.lookup(new ArquillianResourceAnnotation());
+                result = (URL) provider.lookup(resourceAnnotation);
+                if(result == null) {
+                    continue;
+                }
+                for(ResourceProviderWrapper resourceProviderWrapper : serviceLoader.get().all(ResourceProviderWrapper.class)) {
+                    if(resourceProviderWrapper.canWrap(URL.class)) {
+                        result = (URL)resourceProviderWrapper.wrap(result, resourceAnnotation);
+                    }
+                }
+                if(result != null) {
+                    break;
+                }
             }
         }
         return result;

@@ -39,6 +39,7 @@
         <tomcat.version>7.0.26</tomcat.version>
         <tomcat.home>target/apache-tomcat-${tomcat.version}</tomcat.home>
         <arquillian.tomcat.version>1.0.0.CR4</arquillian.tomcat.version>
+        <fest-assert.version>1.4</fest-assert.version>
     </properties>
 
     <dependencies>
@@ -81,6 +82,13 @@
             <groupId>org.jboss.arquillian.container</groupId>
             <artifactId>arquillian-tomcat-managed-7</artifactId>
             <version>${arquillian.tomcat.version}</version>
+            <scope>test</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.easytesting</groupId>
+            <artifactId>fest-assert</artifactId>
+            <version>${fest-assert.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
